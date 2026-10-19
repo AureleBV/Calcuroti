@@ -1,316 +1,771 @@
-<title>Calcuroti</title>
+<!doctype html>
+<html lang="fr">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<title>Calcuroti</title>
+<meta name="theme-color" content="#0f7d6e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Calcuroti">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout : console de salle d'élevage — barre des bacs, saisie du jour + résultats, puis la feuille hebdo telle que sur papier */
+/* Layout : app de salle d'élevage — en-tête collant avec les bacs, 4 onglets (Jour, Semaine, Courbes, Réglages), barre d'onglets en bas sur téléphone */
 :root {
   --bg: #eef3f2; --panel: #ffffff; --ink: #14302d; --muted: #5b7470; --line: #c9d8d5;
-  --accent: #0f7d6e; --accent-soft: #d6ece8; --algae: #6b8f1f; --warn: #b5620e;
+  --accent: #0f7d6e; --accent-ink: #ffffff; --accent-soft: #d6ece8; --algae: #5d7d17;
+  --warn: #a8560a; --warn-soft: #fbead8; --bad: #b3261e; --bad-soft: #f9dedc; --good: #2e7d32;
   --display: "Barlow Semi Condensed", "Arial Narrow", sans-serif;
   --body: "Barlow", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0d1716; --panel: #14211f; --ink: #dce9e6; --muted: #8aa39e; --line: #26403c;
-  --accent: #3cc2ad; --accent-soft: #173a35; --algae: #a5c95a; --warn: #f0a050; color-scheme: dark } }
+  --accent: #3cc2ad; --accent-ink: #062320; --accent-soft: #173a35; --algae: #a5c95a;
+  --warn: #f0a050; --warn-soft: #3a2a17; --bad: #f2867c; --bad-soft: #3d1d1b; --good: #7fcf85; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #0d1716; --panel: #14211f; --ink: #dce9e6; --muted: #8aa39e; --line: #26403c;
-  --accent: #3cc2ad; --accent-soft: #173a35; --algae: #a5c95a; --warn: #f0a050; color-scheme: dark }
+  --accent: #3cc2ad; --accent-ink: #062320; --accent-soft: #173a35; --algae: #a5c95a;
+  --warn: #f0a050; --warn-soft: #3a2a17; --bad: #f2867c; --bad-soft: #3d1d1b; --good: #7fcf85; color-scheme: dark }
 
 * { box-sizing: border-box }
-body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; margin: 0 }
-.wrap { max-width: 1100px; margin: 0 auto; padding-block: 16px 48px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid; gap: 18px }
+html { padding-top: env(safe-area-inset-top, 0px) }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; margin: 0; -webkit-tap-highlight-color: transparent }
+[hidden] { display: none !important }
+.gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+.wrap { max-width: 1100px; margin: 0 auto }
 h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance }
-h1 { font-size: 1.9rem; letter-spacing: .01em }
-h1 small { font-family: var(--body); font-size: .85rem; color: var(--muted); font-weight: 500; margin-left: 8px }
-h2 { font-size: 1.25rem }
-h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600 }
-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px }
-.tabs { display: flex; flex-wrap: wrap; gap: 6px }
+h1 { font-size: 1.5rem; letter-spacing: .01em }
+h2 { font-size: 1.2rem }
+h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600 }
+p { margin: 0 }
+
+/* En-tête */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel) }
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line) }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px }
+.chips { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none }
+.navtop { display: flex; gap: 4px }
+@media (max-width: 700px) { .navtop { display: none } }
+
 button { font: 600 .95rem var(--body); border-radius: 8px; border: 1px solid var(--line); background: var(--panel);
-  color: var(--ink); padding: 8px 14px; cursor: pointer }
+  color: var(--ink); padding: 8px 14px; cursor: pointer; white-space: nowrap }
 button:hover { border-color: var(--accent) }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-button.on { background: var(--accent); border-color: var(--accent); color: var(--panel) }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
 button.ghost { background: transparent }
-button.danger { color: var(--warn); border-color: var(--warn) }
+button.danger { color: var(--bad); border-color: var(--bad); background: transparent }
+button.big { padding: 12px 18px; font-size: 1.05rem }
+
+main { padding-block: 16px 110px }
+@media (min-width: 701px) { main { padding-bottom: 48px } }
+.view { display: grid; gap: 16px }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 14px; min-width: 0 }
-.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px }
-@media (max-width: 820px) { .grid2 { grid-template-columns: minmax(0, 1fr) } }
-.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px }
-label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); font-weight: 500 }
-input, select { font: 500 1.05rem var(--mono); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
-  background: var(--bg); color: var(--ink); width: 100%; min-width: 0 }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr) } }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.between { justify-content: space-between }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px }
+label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); font-weight: 500 }
+input, select, textarea { font: 500 1.05rem var(--mono); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); width: 100%; min-width: 0 }
+input[type="text"], textarea { font-family: var(--body) }
+.hint { font-size: .85rem; color: var(--muted) }
+.dateline { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center }
+.dateline input { text-align: center }
+
+/* Comptage */
 .counts { display: grid; gap: 6px }
-.counts .c { display: grid; grid-template-columns: 2.2em 1fr 1fr 2.4em; gap: 6px; align-items: center }
-.counts .c span { font: 500 .8rem var(--mono); color: var(--muted) }
-.counts .c button { padding: 6px 0 }
-.hint { font-size: .85rem; color: var(--muted); margin: 0 }
+.c { display: grid; grid-template-columns: 1.8em minmax(0, 1fr) minmax(0, 1fr) 2.6em; gap: 6px; align-items: center }
+.c > span { font: 500 .78rem var(--mono); color: var(--muted) }
+.c input { font-size: 1.35rem; padding: 10px; text-align: center }
+.c button { padding: 10px 0 }
+.stat { display: flex; flex-wrap: wrap; gap: 4px 16px; font: .85rem var(--mono); color: var(--muted) }
+.stat b { color: var(--ink); font-weight: 600 }
+.tally { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.tally button { padding: 26px 10px; font-size: 1.1rem; display: grid; gap: 4px }
+.tally button b { font: 600 2rem var(--mono) }
+.tally .ov { background: var(--accent-soft); border-color: var(--accent) }
+
+/* Résultats */
 .res { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px }
-.k { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px }
-.k b { font: 600 1.45rem var(--mono); font-variant-numeric: tabular-nums }
+.k { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; align-content: start }
+.k b { font: 600 1.5rem var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere }
 .k b i { font-style: normal; font-size: .8rem; color: var(--muted); margin-left: 4px }
 .k span { font-size: .78rem; color: var(--muted) }
 .k.act { background: var(--accent-soft); border-color: var(--accent) }
 .k.act b { color: var(--accent) }
-.k.alg b { color: var(--algae) }
-.formula { font: .78rem var(--mono); color: var(--muted); margin: 0; line-height: 1.6 }
-.tablewrap { overflow-x: auto }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; min-width: 980px }
-th, td { border: 1px solid var(--line); padding: 6px 6px; text-align: center; font-size: .85rem }
+.k.alg b { color: var(--algae); font-size: 1.1rem }
+.alerts { display: grid; gap: 6px }
+.al { border-radius: 8px; padding: 8px 12px; font-size: .9rem; display: flex; gap: 8px; align-items: baseline }
+.al::before { font: 700 .75rem var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor }
+.al.w { background: var(--warn-soft); color: var(--warn) } .al.w::before { content: "ATTENTION" }
+.al.b { background: var(--bad-soft); color: var(--bad) } .al.b::before { content: "ALERTE" }
+.al.i { background: var(--accent-soft); color: var(--accent) } .al.i::before { content: "INFO" }
+.formula { font: .78rem var(--mono); color: var(--muted); line-height: 1.7 }
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px }
+.chk { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: 600 .95rem var(--body); color: var(--ink); cursor: pointer }
+.chk input { width: 22px; height: 22px; accent-color: var(--accent); flex: none }
+.chk small { display: block; font: 500 .78rem var(--mono); color: var(--muted) }
+.chk:has(input:checked) { background: var(--accent-soft); border-color: var(--accent) }
+
+/* Tableaux */
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums }
+table.sheet { min-width: 1000px }
+th, td { border: 1px solid var(--line); padding: 6px; text-align: center; font-size: .85rem }
 th { font: 600 .78rem var(--display); color: var(--muted); background: var(--bg) }
 td { font-family: var(--mono) }
 td.day { font-family: var(--display); font-weight: 700 }
+td.l { text-align: left; font-family: var(--body); font-weight: 600 }
 tr.cur td { background: var(--accent-soft) }
+tr.tot td { font-weight: 600; background: var(--bg) }
+tbody tr[data-d] { cursor: pointer }
 td.meal { font-size: .78rem; line-height: 1.25 }
 td.meal em { font-style: normal; color: var(--muted) }
-.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; color: var(--warn) }
-textarea { width: 100%; font: .8rem var(--mono); min-height: 90px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px }
-.toast { font-size: .85rem; color: var(--accent) }
+td .ok { color: var(--good) }
+
+/* Courbes */
+.chart { position: relative }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible }
+.chart text { fill: var(--muted); font: 11px var(--mono) }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 10px; font: .8rem var(--mono); box-shadow: 0 4px 14px rgb(0 0 0 / .12); white-space: nowrap; z-index: 2 }
+.tip b { display: block; font-family: var(--body) }
+
+/* Barre d'onglets mobile */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--panel); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)) }
+.tabbar button { border: 0; background: transparent; padding: 10px 4px; font-size: .9rem; color: var(--muted) }
+.tabbar button.on { color: var(--accent); background: var(--accent-soft) }
+@media (min-width: 701px) { .tabbar { display: none } }
+
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; color: var(--bad) }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); z-index: 9;
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: .9rem; max-width: 90vw }
+@media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s } }
 </style>
+</head>
+<body>
 
-<div class="wrap">
-  <header>
-    <h1>Calcuroti <small>suivi rotifères · élevage en continu</small></h1>
-    <div class="tabs" id="tabs"></div>
-  </header>
+<div class="top"><div class="wrap gut">
+  <h1>Calcuroti</h1>
+  <div class="chips" id="chips"></div>
+  <nav class="navtop" id="navtop"></nav>
+</div></div>
 
-  <div class="grid2">
-    <section class="panel">
-      <div class="row" style="justify-content:space-between">
-        <h2>Saisie du jour</h2>
-        <div class="row">
-          <select id="day" aria-label="Jour"></select>
-          <input id="date" type="date" aria-label="Date" style="width:auto">
+<main class="wrap gut">
+
+  <!-- JOUR -->
+  <div class="view" id="v-jour">
+    <div class="grid2">
+      <section class="panel">
+        <div class="dateline">
+          <button class="ghost" id="dprev" aria-label="Jour précédent">←</button>
+          <input id="date" type="date" aria-label="Date">
+          <button class="ghost" id="dnext" aria-label="Jour suivant">→</button>
         </div>
-      </div>
+        <div class="row between">
+          <h2 id="jourtitle">Comptage</h2>
+          <div class="row">
+            <button class="ghost" id="modeList">Saisie</button>
+            <button class="ghost" id="modeTally">Compteur</button>
+          </div>
+        </div>
+        <p class="hint" id="samplehint"></p>
 
-      <h3>Comptage</h3>
-      <div class="fields">
-        <label>Vol. compté (ml)<input id="cvol" type="number" step="any" inputmode="decimal"></label>
-        <label>Dilution (×)<input id="cdil" type="number" step="any" inputmode="decimal"></label>
-      </div>
-      <div class="counts" id="counts"></div>
-      <div class="row"><button id="addc" class="ghost">+ Comptage</button>
-        <p class="hint" id="cmean"></p></div>
+        <div id="listmode" class="counts">
+          <div class="counts" id="counts"></div>
+          <button class="ghost" id="addc">+ Ajouter un comptage</button>
+        </div>
 
-      <h3>Ou saisie directe</h3>
-      <div class="fields">
-        <label>Densité (rotifs/ml)<input id="dens" type="number" step="any" inputmode="decimal"></label>
-        <label>% ♀ ovigères<input id="ovig" type="number" step="any" inputmode="decimal"></label>
-      </div>
-      <p class="hint">Remplir les comptages calcule automatiquement densité et % ovigères.</p>
-    </section>
+        <div id="tallymode" hidden>
+          <div class="tally">
+            <button id="tRot"><span>Rotifère</span><b id="tRotN">0</b></button>
+            <button id="tOv" class="ov"><span>Ovigère</span><b id="tOvN">0</b></button>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button id="tUndo" class="ghost">Annuler dernier</button>
+            <button id="tSave" class="on big">Valider la goutte</button>
+          </div>
+          <p class="hint" style="margin-top:6px">Un appui sur « Ovigère » compte aussi un rotifère.</p>
+        </div>
+
+        <div class="stat" id="cstat"></div>
+
+        <details>
+          <summary class="hint">Saisie directe de la densité (sans comptage)</summary>
+          <div class="fields" style="margin-top:10px">
+            <label>Densité (rot/ml)<input id="dens" type="number" step="any" inputmode="decimal"></label>
+            <label>% ♀ ovigères<input id="ovig" type="number" step="any" inputmode="decimal"></label>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel">
+        <div class="row between"><h2 id="restitle">Résultats</h2><span class="hint" id="resdate"></span></div>
+        <div class="alerts" id="alerts"></div>
+        <div class="res" id="res"></div>
+        <h3>À faire</h3>
+        <div class="checks" id="checks"></div>
+        <label>Note<textarea id="note" rows="2" placeholder="Observation, incident…"></textarea></label>
+        <details><summary class="hint">Détail des calculs</summary><p class="formula" id="formula" style="margin-top:8px"></p></details>
+      </section>
+    </div>
 
     <section class="panel">
-      <h2 id="restitle">Résultats</h2>
-      <div class="res" id="res"></div>
-      <p class="formula" id="formula"></p>
+      <div class="row between"><h2>Tous les bacs ce jour</h2><span class="hint" id="alldate"></span></div>
+      <div class="tablewrap"><table id="alltable"></table></div>
     </section>
   </div>
 
-  <section class="panel">
-    <div class="row" style="justify-content:space-between">
-      <h2 id="sheettitle">Feuille de la semaine</h2>
-      <div class="row">
-        <button id="csv" class="ghost">Copier en CSV</button>
-        <button id="newweek" class="danger">Nouvelle semaine</button>
+  <!-- SEMAINE -->
+  <div class="view" id="v-semaine" hidden>
+    <section class="panel">
+      <div class="row between">
+        <h2 id="weektitle">Feuille de la semaine</h2>
+        <div class="row">
+          <button class="ghost" id="wprev" aria-label="Semaine précédente">←</button>
+          <span class="hint" id="weeklabel"></span>
+          <button class="ghost" id="wnext" aria-label="Semaine suivante">→</button>
+        </div>
       </div>
-    </div>
-    <div class="confirm" id="confirmbox" hidden>Effacer toutes les saisies de ce bac ?
-      <button id="yes" class="danger">Effacer</button><button id="no">Annuler</button></div>
-    <span class="toast" id="toast"></span>
-    <textarea id="csvout" hidden readonly></textarea>
-    <div class="tablewrap"><table id="sheet"></table></div>
-  </section>
+      <div class="tablewrap"><table class="sheet" id="sheet"></table></div>
+      <p class="hint">Touchez une ligne pour ouvrir ce jour. Repas : grammes de Selco, puis heure de distribution.</p>
+    </section>
+  </div>
 
-  <section class="panel">
-    <div class="row" style="justify-content:space-between">
-      <h2 id="paramtitle">Paramètres du bac</h2>
-      <button id="delbac" class="ghost">Supprimer ce bac</button>
-    </div>
-    <div class="fields">
-      <label>Nom<input id="p_name" type="text" style="font-family:var(--body)"></label>
-      <label>Volume total (L)<input id="p_vol" type="number" step="any" inputmode="decimal"></label>
-      <label>Densité à garder (rot/ml)<input id="p_target" type="number" step="any" inputmode="decimal"></label>
-      <label>Renouvellement / j (L)<input id="p_renew" type="number" step="any" inputmode="decimal"></label>
-      <label>Dose Selco (g/10⁶)<input id="p_dose" type="number" step="any" inputmode="decimal"></label>
-      <label>Algue ajoutée<input id="p_algae" type="text" style="font-family:var(--body)"></label>
-      <label>Heure repas 1<input id="p_h1" type="time"></label>
-      <label>Heure repas 2<input id="p_h2" type="time"></label>
-    </div>
-    <p class="hint">Stock conservé = densité à garder × volume. Tout ce qui dépasse est récolté (soutiré). Volume à filtrer = renouvellement − soutiré.</p>
-  </section>
-</div>
+  <!-- COURBES -->
+  <div class="view" id="v-courbes" hidden>
+    <section class="panel">
+      <div class="row between"><h2 id="charttitle">Courbes</h2>
+        <select id="range" aria-label="Période" style="width:auto">
+          <option value="14">14 jours</option><option value="30" selected>30 jours</option><option value="90">90 jours</option><option value="3650">Tout</option>
+        </select></div>
+      <h3>Densité (rot/ml) · pointillé = densité gardée</h3>
+      <div class="chart" id="c-dens"></div>
+      <h3>% ♀ ovigères · pointillé = seuil d'alerte</h3>
+      <div class="chart" id="c-ovig"></div>
+      <h3>Rotifères produits (×10⁶ / jour)</h3>
+      <div class="chart" id="c-prod"></div>
+      <h3>Taux de croissance (/jour)</h3>
+      <div class="chart" id="c-grow"></div>
+    </section>
+  </div>
+
+  <!-- REGLAGES -->
+  <div class="view" id="v-reglages" hidden>
+    <section class="panel">
+      <div class="row between"><h2 id="paramtitle">Réglages du bac</h2></div>
+      <div class="fields">
+        <label>Nom<input id="p_name" type="text"></label>
+        <label>Volume total (L)<input id="p_vol" type="number" step="any" inputmode="decimal"></label>
+        <label>Densité à garder (rot/ml)<input id="p_target" type="number" step="any" inputmode="decimal"></label>
+        <label>Renouvellement / j (L)<input id="p_renew" type="number" step="any" inputmode="decimal"></label>
+        <label>Dose Selco (g/10⁶ rot.)<input id="p_dose" type="number" step="any" inputmode="decimal"></label>
+        <label>Nombre de repas<select id="p_meals"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+        <label>Heures des repas<input id="p_hours" type="text" placeholder="09:00 15:00"></label>
+        <label>Algue ajoutée / j<input id="p_algae" type="text"></label>
+        <label>Volume compté (ml)<input id="p_sv" type="number" step="any" inputmode="decimal"></label>
+        <label>Dilution (×)<input id="p_dil" type="number" step="any" inputmode="decimal"></label>
+        <label>Seuil alerte ovigères (%)<input id="p_ovmin" type="number" step="any" inputmode="decimal"></label>
+      </div>
+      <p class="hint">Stock gardé = densité à garder × volume. Le surplus est récolté (soutiré). Volume à filtrer = renouvellement − soutiré. Selco = dose × rotifères gardés, réparti sur les repas.</p>
+      <div class="row">
+        <button id="addbac">+ Nouveau bac</button>
+        <button id="delbac" class="danger">Supprimer ce bac</button>
+      </div>
+      <div class="confirm" id="delconfirm" hidden>Supprimer définitivement ce bac et tout son historique ?
+        <button id="delyes" class="danger">Supprimer</button><button id="delno">Annuler</button></div>
+    </section>
+
+    <section class="panel">
+      <h2>Sauvegarde</h2>
+      <p class="hint">Les données restent sur ce téléphone. Exportez une sauvegarde de temps en temps.</p>
+      <div class="row">
+        <button id="expjson">Exporter sauvegarde</button>
+        <label class="hint" style="display:inline-flex;align-items:center;gap:8px"><span>Importer :</span><input id="impjson" type="file" accept=".json,application/json" style="width:auto;font-size:.85rem"></label>
+        <button id="expcsv">Exporter historique CSV</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Installer sur le téléphone</h2>
+      <p class="hint">Android (Chrome) : menu ⋮ → « Installer l'application » ou « Ajouter à l'écran d'accueil ».<br>
+      iPhone (Safari) : bouton Partager → « Sur l'écran d'accueil ».<br>
+      Une fois installée, l'app marche hors connexion.</p>
+      <button id="install" hidden class="on">Installer Calcuroti</button>
+    </section>
+  </div>
+</main>
+
+<nav class="tabbar" id="tabbar"></nav>
+<div class="toast" id="toast" hidden></div>
 
 <script>
+"use strict";
+const KEY = "calcuroti-v2", OLDKEY = "calcuroti-v1";
 const DAYS = ["Lun", "Mar", "Merc", "Jeu", "Ven", "Sam", "Dim"];
-const KEY = "calcuroti-v1";
-const defParams = () => ({ vol: 300, target: 160, renew: 100, dose: 0.7, algae: "1,5 L + 150 ml", h1: "09:00", h2: "15:00" });
-const newBac = name => ({ name, params: defParams(), week: {}, cvol: 1, cdil: 1 });
+const VIEWS = [["jour", "Jour"], ["semaine", "Semaine"], ["courbes", "Courbes"], ["reglages", "Réglages"]];
+const CHECKS = [["sout", "Soutirage"], ["filt", "Filtrage"], ["alg", "Algue ajoutée"]];
 
-let state;
-try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-if (!state || !state.bacs || !state.bacs.length) {
-  // Valeurs des feuilles papier du lundi 19/10
-  const b1 = newBac("Bac 1"), b2 = newBac("Bac 2");
-  b1.week.Lun = { date: "2026-10-19", dens: 194, ovig: 8.8, counts: [] };
-  b2.week.Lun = { date: "2026-10-19", dens: 188, ovig: 5.3, counts: [] };
-  state = { bacs: [b1, b2], cur: 0, day: "Lun" };
-}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+/* ---------- utilitaires ---------- */
 const $ = id => document.getElementById(id);
-const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : null; };
-const fr = (n, d = 1) => n == null ? "" : n.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: d });
+const num = v => { if (v == null || v === "") return null; const n = parseFloat(String(v).replace(",", ".")); return isFinite(n) ? n : null; };
+const fr = (n, d = 1) => n == null || !isFinite(n) ? "" : n.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: d });
 const floor1 = n => Math.floor(n * 10 + 1e-9) / 10;
-const bac = () => state.bacs[state.cur];
-const entry = (b = bac(), d = state.day) => (b.week[d] ||= { date: "", dens: null, ovig: null, counts: [] });
+const pad = n => String(n).padStart(2, "0");
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+const today = () => iso(new Date());
+const dayName = s => DAYS[(parse(s).getDay() + 6) % 7];
+const monday = s => addDays(s, -((parse(s).getDay() + 6) % 7));
+const short = s => s.split("-").reverse().slice(0, 2).join("/");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
 
-function calc(p, e) {
-  const d = e && e.dens;
-  if (!d) return null;
-  const total = d * p.vol * 1000 / 1e6;               // millions de rotifères
-  const stock = p.target * p.vol * 1000 / 1e6;
+/* ---------- état ---------- */
+const defParams = () => ({ vol: 300, target: 160, renew: 100, dose: 0.7, meals: 2, hours: "09:00 15:00",
+  algae: "1,5 L + 150 ml", sv: 0.1, dil: 1, ovmin: 10 });
+const newBac = name => ({ id: uid(), name, params: defParams(), entries: {} });
+
+function load() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  if (s && s.bacs && s.bacs.length) return s;
+  let old = null;
+  try { old = JSON.parse(localStorage.getItem(OLDKEY)); } catch (e) {}
+  if (old && old.bacs && old.bacs.length) {
+    return { bacs: old.bacs.map(b => {
+      const nb = newBac(b.name);
+      Object.assign(nb.params, { vol: b.params.vol, target: b.params.target, renew: b.params.renew, dose: b.params.dose, algae: b.params.algae });
+      Object.values(b.week || {}).forEach(e => { if (e.date && e.dens) nb.entries[e.date] = { counts: [], dens: e.dens, ovig: e.ovig }; });
+      return nb;
+    }), cur: 0, date: today(), view: "jour", mode: "list" };
+  }
+  // Valeurs relevées sur les feuilles papier du lundi 19/10
+  const b1 = newBac("Bac 1"), b2 = newBac("Bac 2");
+  b1.entries["2026-10-19"] = { counts: [], dens: 194, ovig: 8.8 };
+  b2.entries["2026-10-19"] = { counts: [], dens: 188, ovig: 5.3 };
+  return { bacs: [b1, b2], cur: 0, date: today(), view: "jour", mode: "list" };
+}
+let state = load();
+if (!state.date) state.date = today();
+let tally = { t: 0, o: 0, hist: [] };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+const bac = () => state.bacs[state.cur] || state.bacs[0];
+const entry = (b = bac(), d = state.date) => (b.entries[d] ||= { counts: [], dens: null, ovig: null });
+const hoursOf = p => (p.hours || "").split(/[\s,;/]+/).filter(Boolean);
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600);
+}
+
+/* ---------- calculs ---------- */
+function countStats(b, e) {
+  const p = b.params, c = (e?.counts || []).filter(r => num(r.t) != null);
+  if (!c.length) return null;
+  const sv = num(p.sv) || 0.1, dil = num(p.dil) || 1;
+  const ts = c.map(r => num(r.t)), sumT = ts.reduce((a, x) => a + x, 0);
+  const sumO = c.reduce((a, r) => a + (num(r.o) || 0), 0);
+  const mean = sumT / c.length;
+  const sd = c.length > 1 ? Math.sqrt(ts.reduce((a, x) => a + (x - mean) ** 2, 0) / (c.length - 1)) : 0;
+  return { n: c.length, sumT, sumO, mean, sd, cv: mean ? sd / mean * 100 : 0,
+    dens: Math.round(mean / sv * dil), ovig: sumT ? sumO / sumT * 100 : 0, sv, dil };
+}
+
+function calc(b, date, withPrev = true) {
+  const p = b.params, e = b.entries[date];
+  if (!e) return null;
+  const cs = countStats(b, e);
+  const dens = cs ? cs.dens : num(e.dens), ovig = cs ? cs.ovig : num(e.ovig);
+  if (!dens) return { e, cs, dens: null, ovig };
+  const vol = num(p.vol) || 0, meals = Math.max(1, num(p.meals) || 1);
+  const total = dens * vol / 1000;                       // ×10⁶ : rot/ml × L × 1000 ml/L ÷ 10⁶
+  const stock = (num(p.target) || 0) * vol / 1000;
   const prod = Math.max(0, total - stock);
-  const sout = floor1(prod * 1000 / d);               // L : prod·10⁶ / (d rot/ml) / 1000
-  const filt = Math.max(0, +(p.renew - sout).toFixed(1));
-  const selco = +(p.dose * Math.min(total, stock)).toFixed(2);
-  const repas = Math.round(selco / 2);
-  return { total, stock, prod, sout, filt, selco, repas };
+  const kept = Math.min(total, stock);
+  const sout = floor1(prod * 1000 / dens);               // L : prod·10⁶ ÷ rot/ml ÷ 1000
+  const filt = Math.max(0, +((num(p.renew) || 0) - sout).toFixed(1));
+  const selco = +((num(p.dose) || 0) * kept).toFixed(2);
+  const meal = Math.round(selco / meals * 2) / 2;
+  const r = { e, cs, dens, ovig, total, stock, prod, kept, sout, filt, selco, meal, meals };
+  if (withPrev) {
+    for (let i = 1; i <= 3; i++) {
+      const pd = addDays(date, -i), pr = b.entries[pd] && calc(b, pd, false);
+      if (pr && pr.dens) {
+        r.prev = pr; r.prevDays = i;
+        r.growth = Math.log(total / pr.kept) / i;
+        r.forecast = kept * Math.exp(r.growth);
+        r.forecastProd = Math.max(0, r.forecast - stock);
+        break;
+      }
+    }
+  }
+  return r;
 }
 
-function applyCounts() {
-  const b = bac(), e = entry();
-  const c = e.counts.filter(r => num(r.t) != null);
-  if (!c.length) return;
-  const vol = num(b.cvol) || 1, dil = num(b.cdil) || 1;
-  const sumT = c.reduce((s, r) => s + num(r.t), 0), sumO = c.reduce((s, r) => s + (num(r.o) || 0), 0);
-  e.dens = Math.round(sumT / c.length / vol * dil);
-  e.ovig = sumT ? +(sumO / sumT * 100).toFixed(1) : 0;
+function alertsFor(b, r) {
+  const p = b.params, out = [];
+  if (!r || !r.dens) return out;
+  if (r.cs && r.cs.n < 3) out.push(["i", `${r.cs.n} comptage${r.cs.n > 1 ? "s" : ""} seulement : 3 minimum conseillés pour une densité fiable.`]);
+  if (r.cs && r.cs.n > 1 && r.cs.cv > 25) out.push(["w", `Comptages dispersés (CV ${fr(r.cs.cv, 0)} %). Bien homogénéiser et refaire un comptage.`]);
+  if (r.total <= r.stock) out.push(["w", `Densité sous la densité à garder (${fr(num(p.target))} rot/ml) : pas de récolte aujourd'hui.`]);
+  if (r.ovig != null && r.ovig < (num(p.ovmin) ?? 10)) out.push(["b", `% ovigères faible (${fr(r.ovig)} %) : croissance ralentie, surveiller qualité d'eau et alimentation.`]);
+  if (r.growth != null && r.growth < 0) out.push(["b", `Population en baisse depuis le ${short(addDays(state.date, -r.prevDays))} (taux ${fr(r.growth, 2)} /j).`]);
+  if (r.sout > (num(p.renew) || 0)) out.push(["w", `Soutirage (${fr(r.sout)} L) supérieur au renouvellement prévu (${fr(num(p.renew))} L).`]);
+  return out;
 }
 
-function renderTabs() {
-  $("tabs").innerHTML = "";
+/* ---------- rendu : en-tête et navigation ---------- */
+function renderChips() {
+  $("chips").innerHTML = "";
   state.bacs.forEach((b, i) => {
     const t = document.createElement("button");
-    t.textContent = b.name; t.className = i === state.cur ? "on" : "";
-    t.onclick = () => { state.cur = i; save(); renderAll(); };
-    $("tabs").append(t);
+    const r = calc(b, state.date, false);
+    t.textContent = b.name + (r && r.dens ? " ✓" : "");
+    t.className = i === state.cur ? "on" : "";
+    t.onclick = () => { state.cur = i; tally = { t: 0, o: 0, hist: [] }; save(); renderAll(); };
+    $("chips").append(t);
   });
-  const add = document.createElement("button");
-  add.textContent = "+ Bac"; add.className = "ghost";
-  add.onclick = () => { state.bacs.push(newBac("Bac " + (state.bacs.length + 1))); state.cur = state.bacs.length - 1; save(); renderAll(); };
-  $("tabs").append(add);
+}
+function renderNav() {
+  for (const host of [$("navtop"), $("tabbar")]) {
+    host.innerHTML = "";
+    VIEWS.forEach(([k, l]) => {
+      const b = document.createElement("button");
+      b.textContent = l; b.className = (state.view === k ? "on" : "") + (host.id === "navtop" ? " ghost" : "");
+      b.onclick = () => { state.view = k; save(); renderView(); };
+      host.append(b);
+    });
+  }
+}
+function renderView() {
+  VIEWS.forEach(([k]) => $("v-" + k).hidden = state.view !== k);
+  renderNav();
+  if (state.view === "jour") { renderInput(); update(); }
+  if (state.view === "semaine") renderSheet();
+  if (state.view === "courbes") renderCharts();
+  if (state.view === "reglages") renderParams();
 }
 
+/* ---------- rendu : jour ---------- */
 function renderInput() {
-  const b = bac(), e = entry();
-  $("day").value = state.day; $("date").value = e.date || "";
-  $("cvol").value = b.cvol; $("cdil").value = b.cdil;
-  $("dens").value = e.dens ?? ""; $("ovig").value = e.ovig ?? "";
+  const b = bac(), p = b.params, e = entry();
+  $("date").value = state.date;
+  $("jourtitle").textContent = `Comptage · ${dayName(state.date)} ${short(state.date)}`;
+  $("samplehint").textContent = `Comptez les rotifères dans ${fr(num(p.sv) || 0.1, 3)} ml` + ((num(p.dil) || 1) !== 1 ? ` (dilution ×${fr(num(p.dil))})` : "") + ", une ligne par goutte.";
+  $("listmode").hidden = state.mode === "tally"; $("tallymode").hidden = state.mode !== "tally";
+  $("modeList").className = state.mode === "tally" ? "ghost" : "on";
+  $("modeTally").className = state.mode === "tally" ? "on" : "ghost";
+  $("tRotN").textContent = tally.t; $("tOvN").textContent = tally.o;
+
   const box = $("counts"); box.innerHTML = "";
-  if (!e.counts.length) e.counts.push({ t: "", o: "" });
+  if (!e.counts.length || num(e.counts[e.counts.length - 1].t) != null) e.counts.push({ t: "", o: "" });
   const head = document.createElement("div"); head.className = "c";
   head.innerHTML = "<span>#</span><span>Rotifères</span><span>dont ovigères</span><span></span>"; box.append(head);
   e.counts.forEach((r, i) => {
     const row = document.createElement("div"); row.className = "c";
-    row.innerHTML = `<span>${i + 1}</span><input id="ct${i}" type="number" inputmode="numeric" aria-label="Rotifères comptage ${i + 1}">` +
-      `<input id="co${i}" type="number" inputmode="numeric" aria-label="Ovigères comptage ${i + 1}"><button class="ghost" aria-label="Retirer">×</button>`;
-    const [ , it, io, del] = row.children;
+    row.innerHTML = `<span>${i + 1}</span><input id="ct${i}" type="number" inputmode="numeric" enterkeyhint="next" aria-label="Rotifères goutte ${i + 1}">` +
+      `<input id="co${i}" type="number" inputmode="numeric" enterkeyhint="next" aria-label="Ovigères goutte ${i + 1}"><button class="ghost" aria-label="Retirer la goutte ${i + 1}">×</button>`;
+    const it = row.children[1], io = row.children[2], del = row.children[3];
     it.value = r.t; io.value = r.o;
-    it.oninput = () => { r.t = it.value; applyCounts(); update(); };
-    io.oninput = () => { r.o = io.value; applyCounts(); update(); };
-    del.onclick = () => { e.counts.splice(i, 1); applyCounts(); save(); renderInput(); update(); };
+    it.oninput = () => {
+      r.t = it.value; update();
+      if (i === e.counts.length - 1 && num(r.t) != null) { e.counts.push({ t: "", o: "" }); appendRowLater(); }
+    };
+    io.oninput = () => { r.o = io.value; update(); };
+    it.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); io.focus(); } };
+    io.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); const n = $("ct" + (i + 1)); n ? n.focus() : io.blur(); } };
+    del.onclick = () => { e.counts.splice(i, 1); save(); renderInput(); update(); };
     box.append(row);
   });
+  $("dens").value = e.dens ?? ""; $("ovig").value = e.ovig ?? "";
+  $("note").value = e.note || "";
+}
+// Ajoute la ligne vide suivante sans reconstruire celle qu'on est en train de taper
+function appendRowLater() {
+  const e = entry(), i = e.counts.length - 1, box = $("counts");
+  const row = document.createElement("div"); row.className = "c";
+  row.innerHTML = `<span>${i + 1}</span><input id="ct${i}" type="number" inputmode="numeric" enterkeyhint="next" aria-label="Rotifères goutte ${i + 1}">` +
+    `<input id="co${i}" type="number" inputmode="numeric" enterkeyhint="next" aria-label="Ovigères goutte ${i + 1}"><button class="ghost" aria-label="Retirer la goutte ${i + 1}">×</button>`;
+  box.append(row);
+  const r = e.counts[i], it = row.children[1], io = row.children[2];
+  it.oninput = () => { r.t = it.value; update(); if (i === e.counts.length - 1 && num(r.t) != null) { e.counts.push({ t: "", o: "" }); appendRowLater(); } };
+  io.oninput = () => { r.o = io.value; update(); };
+  it.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); io.focus(); } };
+  io.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); const n = $("ct" + (i + 1)); n ? n.focus() : io.blur(); } };
+  row.children[3].onclick = () => { e.counts.splice(i, 1); save(); renderInput(); update(); };
 }
 
 function update() {
-  const b = bac(), p = b.params, e = entry(), r = calc(p, e);
-  $("dens").value = e.dens ?? ""; $("ovig").value = e.ovig ?? "";
-  const c = e.counts.filter(x => num(x.t) != null);
-  $("cmean").textContent = c.length ? `Moyenne ${fr(c.reduce((s, x) => s + num(x.t), 0) / c.length)} rot. / ${fr(num(b.cvol) || 1, 3)} ml × ${fr(num(b.cdil) || 1)}` : "";
-  $("restitle").textContent = `Résultats · ${b.name} · ${state.day}`;
+  const b = bac(), p = b.params, r = calc(b, state.date);
+  const cs = r && r.cs;
+  $("cstat").innerHTML = cs ? `<span>Gouttes <b>${cs.n}</b></span><span>Moyenne <b>${fr(cs.mean)}</b> / ${fr(cs.sv, 3)} ml</span>` +
+    `<span>Densité <b>${fr(cs.dens, 0)}</b> rot/ml</span><span>Ovigères <b>${fr(cs.ovig)} %</b></span>` + (cs.n > 1 ? `<span>CV <b>${fr(cs.cv, 0)} %</b></span>` : "") : "";
+  if (cs) { $("dens").value = ""; $("ovig").value = ""; $("dens").placeholder = cs.dens; $("ovig").placeholder = fr(cs.ovig); }
+  else { $("dens").placeholder = ""; $("ovig").placeholder = ""; }
+
+  $("restitle").textContent = b.name;
+  $("resdate").textContent = `${dayName(state.date)} ${short(state.date)}`;
+  $("alerts").innerHTML = alertsFor(b, r).map(([c, t]) => `<div class="al ${c}"><span>${esc(t)}</span></div>`).join("");
   const k = (v, u, l, cls = "") => `<div class="k ${cls}"><b>${v}<i>${u}</i></b><span>${l}</span></div>`;
-  $("res").innerHTML = r ? [
-    k(fr(r.total), "×10⁶", "Rotifères total"),
-    k(fr(r.prod), "×10⁶", "Rotifères produits"),
-    k(fr(r.sout), "L", "Volume à soutirer", "act"),
-    k(fr(r.filt), "L", "Volume à filtrer", "act"),
-    k(p.algae || "—", "", "Algue à ajouter", "alg"),
-    k(fr(r.selco, 2), "g/j", "Selco total"),
-    k(r.repas, "g", `Repas 1 · ${p.h1 || "—"}`, "act"),
-    k(r.repas, "g", `Repas 2 · ${p.h2 || "—"}`, "act"),
-  ].join("") : `<p class="hint">Entrez un comptage ou une densité pour calculer.</p>`;
-  $("formula").innerHTML = r ?
-    `Total = ${fr(e.dens)} rot/ml × ${fr(p.vol)} L = ${fr(r.total)}·10⁶<br>` +
-    `Stock gardé = ${fr(p.target)} × ${fr(p.vol)} L = ${fr(r.stock)}·10⁶ → produits = ${fr(r.prod)}·10⁶<br>` +
-    `Soutirer = ${fr(r.prod)}·10⁶ ÷ ${fr(e.dens)} rot/ml = ${fr(r.sout)} L · Filtrer = ${fr(p.renew)} − ${fr(r.sout)} = ${fr(r.filt)} L<br>` +
-    `Selco = ${fr(p.dose, 2)} × ${fr(Math.min(r.total, r.stock))}·10⁶ = ${fr(r.selco, 2)} g → 2 repas de ${r.repas} g` : "";
-  renderSheet(); save();
+  const hrs = hoursOf(p);
+  if (r && r.dens) {
+    const meals = Array.from({ length: r.meals }, (_, i) => k(fr(r.meal), "g", `Repas ${i + 1}${hrs[i] ? " · " + esc(hrs[i]) : ""}`, "act"));
+    $("res").innerHTML = [
+      k(fr(r.dens, 0), "rot/ml", "Densité"),
+      k(fr(r.ovig), "%", "♀ ovigères"),
+      k(fr(r.total), "×10⁶", "Rotifères total"),
+      k(fr(r.prod), "×10⁶", "Rotifères produits"),
+      k(fr(r.sout), "L", "Volume à soutirer", "act"),
+      k(fr(r.filt), "L", "Volume à filtrer", "act"),
+      k(esc(p.algae) || "—", "", "Algue à ajouter", "alg"),
+      k(fr(r.selco, 2), "g/j", "Selco total"),
+      ...meals,
+      r.growth != null ? k((r.growth >= 0 ? "+" : "") + fr(r.growth, 2), "/j", `Croissance (vs ${short(addDays(state.date, -r.prevDays))})`) : "",
+      r.forecastProd != null ? k(fr(r.forecastProd), "×10⁶", "Récolte prévue demain") : "",
+    ].join("");
+    $("formula").innerHTML =
+      (cs ? `Densité = ${fr(cs.mean)} rot ÷ ${fr(cs.sv, 3)} ml × ${fr(cs.dil)} = ${fr(cs.dens, 0)} rot/ml · ovig. = ${cs.sumO} ÷ ${cs.sumT} = ${fr(cs.ovig)} %<br>` : "") +
+      `Total = ${fr(r.dens, 0)} rot/ml × ${fr(num(p.vol))} L = ${fr(r.total)}·10⁶<br>` +
+      `Stock gardé = ${fr(num(p.target))} × ${fr(num(p.vol))} L = ${fr(r.stock)}·10⁶ → produits = ${fr(r.prod)}·10⁶<br>` +
+      `Soutirer = ${fr(r.prod)}·10⁶ ÷ ${fr(r.dens, 0)} rot/ml = ${fr(r.sout)} L · Filtrer = ${fr(num(p.renew))} − ${fr(r.sout)} = ${fr(r.filt)} L<br>` +
+      `Selco = ${fr(num(p.dose), 2)} g × ${fr(r.kept)}·10⁶ gardés = ${fr(r.selco, 2)} g → ${r.meals} repas de ${fr(r.meal)} g` +
+      (r.growth != null ? `<br>Croissance = ln(${fr(r.total)} ÷ ${fr(r.prev.kept)}) ÷ ${r.prevDays} j = ${fr(r.growth, 3)} /j` : "");
+  } else {
+    $("res").innerHTML = `<p class="hint">Tapez le nombre de rotifères compté dans ${fr(num(p.sv) || 0.1, 3)} ml : tout le reste se calcule.</p>`;
+    $("formula").innerHTML = "";
+  }
+  renderChecks(b, r);
+  renderAllTable();
+  renderChips();
+  save();
 }
 
-const COLS = ["Date", "Stade", "Densité rot/ml", "% ♀ ovig.", "Volume total L", "Nb total 10⁶", "Produits 10⁶",
-  "À soutirer L", "À filtrer L", "Algue ajoutée", "Dose g/10⁶", "Selco g/j", "Repas 1 g / H", "Repas 2 g / H"];
-function rows(b) {
-  const p = b.params;
-  return DAYS.map(d => {
-    const e = b.week[d] || {}, r = calc(p, e);
-    const dt = e.date ? e.date.split("-").reverse().slice(0, 2).join("/") : "";
-    return { d, cells: [dt, d, fr(e.dens), fr(e.ovig), r ? fr(p.vol) : "", r ? fr(r.total) : "", r ? fr(r.prod) : "",
-      r ? fr(r.sout) : "", r ? fr(r.filt) : "", r ? p.algae : "", fr(p.dose, 2), r ? fr(r.selco, 2) : "",
-      r ? [r.repas, p.h1] : "", r ? [r.repas, p.h2] : ""] };
+function renderChecks(b, r) {
+  const e = entry(b), p = b.params, hrs = hoursOf(p);
+  e.done ||= {};
+  const items = [...CHECKS.map(([k, l]) => [k, l, k === "sout" && r?.dens ? `${fr(r.sout)} L` : k === "filt" && r?.dens ? `${fr(r.filt)} L` : k === "alg" ? p.algae : ""]),
+    ...Array.from({ length: Math.max(1, num(p.meals) || 1) }, (_, i) => ["r" + (i + 1), `Repas ${i + 1}`, [r?.dens ? fr(r.meal) + " g" : "", hrs[i] || ""].filter(Boolean).join(" · ")])];
+  $("checks").innerHTML = items.map(([k, l, s]) =>
+    `<label class="chk"><input type="checkbox" data-k="${k}" ${e.done[k] ? "checked" : ""}><span>${l}<small>${esc(s)}</small></span></label>`).join("");
+  $("checks").querySelectorAll("input").forEach(c => c.onchange = () => { e.done[c.dataset.k] = c.checked; save(); });
+}
+
+function renderAllTable() {
+  $("alldate").textContent = `${dayName(state.date)} ${short(state.date)}`;
+  let sp = 0, ss = 0, sf = 0, sl = 0;
+  const rows = state.bacs.map((b, i) => {
+    const r = calc(b, state.date, false);
+    if (!r || !r.dens) return `<tr data-i="${i}"><td class="l">${esc(b.name)}</td><td colspan="6" class="hint">pas encore de comptage</td></tr>`;
+    sp += r.prod; ss += r.sout; sf += r.filt; sl += r.selco;
+    return `<tr data-i="${i}" class="${i === state.cur ? "cur" : ""}"><td class="l">${esc(b.name)}</td><td>${fr(r.dens, 0)}</td><td>${fr(r.ovig)}</td>` +
+      `<td>${fr(r.prod)}</td><td>${fr(r.sout)}</td><td>${fr(r.filt)}</td><td>${fr(r.selco, 2)}</td></tr>`;
+  });
+  $("alltable").innerHTML = `<thead><tr><th>Bac</th><th>rot/ml</th><th>% ovig.</th><th>Produits ×10⁶</th><th>Soutirer L</th><th>Filtrer L</th><th>Selco g</th></tr></thead><tbody>` +
+    rows.join("") + `<tr class="tot"><td class="l">Total</td><td></td><td></td><td>${fr(sp)}</td><td>${fr(ss)}</td><td>${fr(sf)}</td><td>${fr(sl, 2)}</td></tr></tbody>`;
+  $("alltable").querySelectorAll("tr[data-i]").forEach(tr => tr.onclick = () => { state.cur = +tr.dataset.i; save(); renderAll(); });
+}
+
+/* ---------- rendu : semaine ---------- */
+const COLS = ["Date", "Stade", "Densité rot/ml", "% ♀ ovig.", "Vol. total L", "Total ×10⁶", "Produits ×10⁶",
+  "À soutirer L", "À filtrer L", "Algue", "Dose g/10⁶", "Selco g/j", "Repas (g / h)", "Fait"];
+function weekRows(b, mon) {
+  const p = b.params, hrs = hoursOf(p);
+  return DAYS.map((d, i) => {
+    const date = addDays(mon, i), r = calc(b, date, false), e = b.entries[date] || {};
+    const ok = r && r.dens;
+    const doneN = Object.values(e.done || {}).filter(Boolean).length;
+    return { date, d, r, cells: [short(date), d, ok ? fr(r.dens, 0) : "", ok ? fr(r.ovig) : "", ok ? fr(num(p.vol)) : "",
+      ok ? fr(r.total) : "", ok ? fr(r.prod) : "", ok ? fr(r.sout) : "", ok ? fr(r.filt) : "", ok ? p.algae : "",
+      fr(num(p.dose), 2), ok ? fr(r.selco, 2) : "",
+      ok ? { meal: Array.from({ length: r.meals }, (_, k) => `${fr(r.meal)} g <em>${esc(hrs[k] || "")}</em>`).join("<br>") } : "",
+      ok ? { done: `${doneN}/${CHECKS.length + r.meals}` } : ""] };
   });
 }
 function renderSheet() {
-  const b = bac();
-  $("sheettitle").textContent = `Feuille de la semaine · ${b.name}`;
+  const b = bac(), mon = monday(state.date);
+  $("weektitle").textContent = `Feuille · ${b.name}`;
+  $("weeklabel").textContent = `${short(mon)} → ${short(addDays(mon, 6))}`;
+  const rows = weekRows(b, mon);
+  const sum = f => rows.reduce((a, x) => a + (x.r && x.r.dens ? x.r[f] : 0), 0);
   $("sheet").innerHTML = `<thead><tr>${COLS.map(c => `<th>${c}</th>`).join("")}</tr></thead><tbody>` +
-    rows(b).map(r => `<tr class="${r.d === state.day ? "cur" : ""}" data-d="${r.d}">` + r.cells.map((c, i) =>
-      i === 1 ? `<td class="day">${c}</td>` : Array.isArray(c) ? `<td class="meal">${c[0]} g<br><em>${c[1] || ""}</em></td>` : `<td>${c}</td>`
-    ).join("") + "</tr>").join("") + "</tbody>";
-  $("sheet").querySelectorAll("tbody tr").forEach(tr => tr.onclick = () => { state.day = tr.dataset.d; save(); renderInput(); update(); });
+    rows.map(r => `<tr class="${r.date === state.date ? "cur" : ""}" data-d="${r.date}">` + r.cells.map((c, i) =>
+      i === 1 ? `<td class="day">${c}</td>` : c && c.meal ? `<td class="meal">${c.meal}</td>` : c && c.done ? `<td class="${c.done.split("/")[0] === c.done.split("/")[1] ? "ok" : ""}">${c.done}</td>` : `<td>${esc(c)}</td>`
+    ).join("") + "</tr>").join("") +
+    `<tr class="tot"><td colspan="6" class="l">Total semaine</td><td>${fr(sum("prod"))}</td><td>${fr(sum("sout"))}</td><td>${fr(sum("filt"))}</td><td></td><td></td><td>${fr(sum("selco"), 2)}</td><td></td><td></td></tr></tbody>`;
+  $("sheet").querySelectorAll("tr[data-d]").forEach(tr => tr.onclick = () => { state.date = tr.dataset.d; state.view = "jour"; save(); renderView(); });
 }
 
+/* ---------- rendu : courbes ---------- */
+function series(b, days) {
+  const end = state.date, start = addDays(end, -days + 1);
+  return Object.keys(b.entries).filter(d => d >= start && d <= end).sort()
+    .map(d => ({ d, r: calc(b, d) })).filter(x => x.r && x.r.dens);
+}
+function chart(host, pts, { unit, dec = 1, ref, bars = false, zero = false }) {
+  const W = Math.max(280, host.clientWidth || 600), H = Math.round(Math.min(220, Math.max(160, W * 0.32)));
+  const m = { l: 44, r: 12, t: 12, b: 26 };
+  if (!pts.length) { host.innerHTML = `<p class="hint">Pas encore de données sur cette période.</p>`; return; }
+  const t0 = parse(pts[0].d).getTime(), t1 = parse(pts[pts.length - 1].d).getTime();
+  const span = Math.max(1, (t1 - t0) / 864e5);
+  const ys = pts.map(p => p.y).concat(ref != null ? [ref] : []);
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  if (bars || zero) lo = Math.min(0, lo);
+  if (lo === hi) { hi += 1; lo -= bars ? 0 : 1; }
+  const padY = (hi - lo) * 0.1; hi += padY; if (!(bars || zero)) lo -= padY;
+  const step = niceStep((hi - lo) / 4);
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const bw = Math.max(4, Math.min(24, pw / (span + 1) * 0.6));
+  const X = d => m.l + (pts.length === 1 ? pw / 2 : (bars ? bw / 2 + (parse(d).getTime() - t0) / 864e5 / span * (pw - bw) : (parse(d).getTime() - t0) / 864e5 / span * pw));
+  const Y = v => m.t + (hi - v) / (hi - lo) * ph;
+  let g = "";
+  for (let v = lo; v <= hi + step / 2; v += step) {
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>` +
+      `<text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${fr(v, step < 1 ? 2 : 0)}</text>`;
+  }
+  const nt = Math.min(pts.length, Math.max(2, Math.floor(pw / 70)));
+  for (let i = 0; i < nt; i++) {
+    const p = pts[Math.round(i * (pts.length - 1) / Math.max(1, nt - 1))];
+    g += `<text x="${X(p.d)}" y="${H - 6}" text-anchor="middle">${short(p.d)}</text>`;
+  }
+  if (ref != null) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(ref)}" y2="${Y(ref)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  if (bars) {
+    const base = Y(Math.max(lo, 0));
+    pts.forEach(p => {
+      const y = Y(p.y), h = Math.max(0, base - y), r = Math.min(4, bw / 2, h);
+      g += h > 0 ? `<path d="M${X(p.d) - bw / 2},${base} V${y + r} q0,-${r} ${r},-${r} H${X(p.d) + bw / 2 - r} q${r},0 ${r},${r} V${base} Z" fill="var(--accent)"/>` : "";
+    });
+  } else {
+    const path = pts.map((p, i) => `${i ? "L" : "M"}${X(p.d)},${Y(p.y)}`).join(" ");
+    g += `<path d="${path} L${X(pts[pts.length - 1].d)},${Y(lo)} L${X(pts[0].d)},${Y(lo)} Z" fill="var(--accent)" opacity=".1"/>`;
+    g += `<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const last = pts[pts.length - 1];
+    g += `<circle cx="${X(last.d)}" cy="${Y(last.y)}" r="4.5" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/>`;
+  }
+  g += `<line class="cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ph}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/>`;
+  g += `<circle class="dot" r="5" fill="var(--accent)" stroke="var(--panel)" stroke-width="2" visibility="hidden"/>`;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Graphique">${g}<rect x="${m.l}" y="0" width="${pw}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+  const svg = host.querySelector("svg"), tip = host.querySelector(".tip"), cross = svg.querySelector(".cross"), dot = svg.querySelector(".dot");
+  const move = ev => {
+    const rect = svg.getBoundingClientRect(), x = (ev.clientX - rect.left) * W / rect.width;
+    let best = pts[0]; pts.forEach(p => { if (Math.abs(X(p.d) - x) < Math.abs(X(best.d) - x)) best = p; });
+    const cx = X(best.d), cy = Y(best.y);
+    cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
+    if (!bars) { dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", "visible"); }
+    tip.innerHTML = `<b>${dayName(best.d)} ${short(best.d)}</b>${fr(best.y, dec)} ${unit}`;
+    tip.hidden = false;
+    const px = cx * rect.width / W, tw = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(0, px - tw / 2), rect.width - tw) + "px";
+    tip.style.top = Math.max(0, cy * rect.height / H - tip.offsetHeight - 10) + "px";
+  };
+  svg.addEventListener("pointermove", move);
+  svg.addEventListener("pointerdown", move);
+  svg.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); });
+}
+function niceStep(raw) {
+  const p = Math.pow(10, Math.floor(Math.log10(raw || 1))), f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+}
+function renderCharts() {
+  const b = bac(), s = series(b, +$("range").value);
+  $("charttitle").textContent = `Courbes · ${b.name}`;
+  chart($("c-dens"), s.map(x => ({ d: x.d, y: x.r.dens })), { unit: "rot/ml", dec: 0, ref: num(b.params.target) });
+  chart($("c-ovig"), s.filter(x => x.r.ovig != null).map(x => ({ d: x.d, y: x.r.ovig })), { unit: "%", ref: num(b.params.ovmin), zero: true });
+  chart($("c-prod"), s.map(x => ({ d: x.d, y: x.r.prod })), { unit: "×10⁶", bars: true });
+  chart($("c-grow"), s.filter(x => x.r.growth != null).map(x => ({ d: x.d, y: x.r.growth })), { unit: "/j", dec: 3, ref: 0 });
+}
+
+/* ---------- rendu : réglages ---------- */
 function renderParams() {
   const b = bac(), p = b.params;
-  $("paramtitle").textContent = `Paramètres · ${b.name}`;
+  $("paramtitle").textContent = `Réglages · ${b.name}`;
   $("p_name").value = b.name;
-  [["p_vol", "vol"], ["p_target", "target"], ["p_renew", "renew"], ["p_dose", "dose"], ["p_algae", "algae"], ["p_h1", "h1"], ["p_h2", "h2"]]
-    .forEach(([id, k]) => { $(id).value = p[k]; $(id).oninput = () => { p[k] = $(id).type === "number" ? (num($(id).value) ?? 0) : $(id).value; update(); }; });
+  $("p_name").oninput = () => { b.name = $("p_name").value || "Bac"; renderChips(); save(); };
+  [["p_vol", "vol"], ["p_target", "target"], ["p_renew", "renew"], ["p_dose", "dose"], ["p_meals", "meals"], ["p_hours", "hours"],
+   ["p_algae", "algae"], ["p_sv", "sv"], ["p_dil", "dil"], ["p_ovmin", "ovmin"]].forEach(([id, k]) => {
+    const el = $(id); el.value = p[k] ?? "";
+    el.oninput = el.onchange = () => { p[k] = el.type === "number" || id === "p_meals" ? num(el.value) : el.value; save(); };
+  });
+  $("delconfirm").hidden = true;
 }
 
-function renderAll() { renderTabs(); renderInput(); renderParams(); update(); }
+/* ---------- export / import ---------- */
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("expjson").onclick = () => { download(`calcuroti-${today()}.json`, JSON.stringify(state, null, 1), "application/json"); toast("Sauvegarde exportée."); };
+$("impjson").onchange = ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    const s = JSON.parse(t);
+    if (!s.bacs || !s.bacs.length) throw new Error();
+    state = s; state.date ||= today(); save(); renderAll(); toast("Sauvegarde importée.");
+  }).catch(() => toast("Fichier non reconnu : choisissez une sauvegarde Calcuroti (.json)."));
+  ev.target.value = "";
+};
+$("expcsv").onclick = () => {
+  const lines = [["Bac", "Date", "Jour", "Densité rot/ml", "% ovigères", "Gouttes", "Total 1e6", "Produits 1e6", "Soutirer L", "Filtrer L", "Algue", "Selco g", "Repas g", "Croissance /j", "Note"].join(";")];
+  state.bacs.forEach(b => Object.keys(b.entries).sort().forEach(d => {
+    const r = calc(b, d); if (!r || !r.dens) return;
+    lines.push([b.name, d, dayName(d), fr(r.dens, 0), fr(r.ovig), r.cs ? r.cs.n : "", fr(r.total), fr(r.prod), fr(r.sout), fr(r.filt),
+      b.params.algae, fr(r.selco, 2), fr(r.meal), r.growth != null ? fr(r.growth, 3) : "", (r.e.note || "").replace(/[;\n]/g, " ")].join(";"));
+  }));
+  download(`calcuroti-historique-${today()}.csv`, "﻿" + lines.join("\n"), "text/csv");
+  toast("Historique exporté.");
+};
 
-$("day").innerHTML = DAYS.map(d => `<option>${d}</option>`).join("");
-$("day").onchange = () => { state.day = $("day").value; renderInput(); update(); };
-$("date").oninput = () => { entry().date = $("date").value; update(); };
-$("cvol").oninput = () => { bac().cvol = $("cvol").value; applyCounts(); update(); };
-$("cdil").oninput = () => { bac().cdil = $("cdil").value; applyCounts(); update(); };
+/* ---------- événements ---------- */
+$("date").onchange = () => { if ($("date").value) { state.date = $("date").value; tally = { t: 0, o: 0, hist: [] }; renderInput(); update(); } };
+$("dprev").onclick = () => { state.date = addDays(state.date, -1); renderInput(); update(); };
+$("dnext").onclick = () => { state.date = addDays(state.date, 1); renderInput(); update(); };
+$("wprev").onclick = () => { state.date = addDays(state.date, -7); save(); renderSheet(); };
+$("wnext").onclick = () => { state.date = addDays(state.date, 7); save(); renderSheet(); };
+$("modeList").onclick = () => { state.mode = "list"; renderInput(); save(); };
+$("modeTally").onclick = () => { state.mode = "tally"; renderInput(); save(); };
+$("addc").onclick = () => { const e = entry(); e.counts.push({ t: "", o: "" }); renderInput(); $("ct" + (e.counts.length - 1))?.focus(); };
 $("dens").oninput = () => { entry().dens = num($("dens").value); update(); };
 $("ovig").oninput = () => { entry().ovig = num($("ovig").value); update(); };
-$("addc").onclick = () => { entry().counts.push({ t: "", o: "" }); renderInput(); $("ct" + (entry().counts.length - 1)).focus(); };
-$("p_name").oninput = () => { bac().name = $("p_name").value || "Bac"; renderTabs(); update(); };
-$("newweek").onclick = () => { $("confirmbox").hidden = false; };
-$("no").onclick = () => { $("confirmbox").hidden = true; };
-$("yes").onclick = () => { bac().week = {}; state.day = "Lun"; $("confirmbox").hidden = true; renderAll(); };
-$("delbac").onclick = () => {
-  if (state.bacs.length < 2) return;
-  state.bacs.splice(state.cur, 1); state.cur = 0; save(); renderAll();
+$("note").oninput = () => { entry().note = $("note").value; save(); };
+const buzz = () => { try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} };
+$("tRot").onclick = () => { tally.t++; tally.hist.push("t"); buzz(); renderInput(); };
+$("tOv").onclick = () => { tally.t++; tally.o++; tally.hist.push("o"); buzz(); renderInput(); };
+$("tUndo").onclick = () => { const h = tally.hist.pop(); if (h) { tally.t--; if (h === "o") tally.o--; } renderInput(); };
+$("tSave").onclick = () => {
+  if (!tally.t) return toast("Rien à valider : comptez d'abord la goutte.");
+  const e = entry(); e.counts = e.counts.filter(r => num(r.t) != null);
+  e.counts.push({ t: String(tally.t), o: String(tally.o) });
+  toast(`Goutte ${e.counts.length} : ${tally.t} rotifères, ${tally.o} ovigères.`);
+  tally = { t: 0, o: 0, hist: [] }; renderInput(); update();
 };
-$("csv").onclick = () => {
-  const b = bac();
-  const csv = [b.name, COLS.join(";"), ...rows(b).map(r => r.cells.map(c => Array.isArray(c) ? `${c[0]} g ${c[1] || ""}` : c).join(";"))].join("\n");
-  const out = $("csvout");
-  navigator.clipboard.writeText(csv).then(() => { $("toast").textContent = "Feuille copiée (collez-la dans Excel)."; out.hidden = true; })
-    .catch(() => { out.value = csv; out.hidden = false; out.select(); $("toast").textContent = "Copiez le texte sélectionné ci-dessous."; });
-};
+$("range").onchange = renderCharts;
+$("addbac").onclick = () => { state.bacs.push(newBac("Bac " + (state.bacs.length + 1))); state.cur = state.bacs.length - 1; save(); renderAll(); toast("Bac ajouté."); };
+$("delbac").onclick = () => { if (state.bacs.length < 2) return toast("Il faut garder au moins un bac."); $("delconfirm").hidden = false; };
+$("delno").onclick = () => { $("delconfirm").hidden = true; };
+$("delyes").onclick = () => { state.bacs.splice(state.cur, 1); state.cur = 0; save(); renderAll(); toast("Bac supprimé."); };
+let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => state.view === "courbes" && renderCharts(), 150); });
 
+/* ---------- installation hors ligne ---------- */
+let installEvt = null;
+addEventListener("beforeinstallprompt", ev => { ev.preventDefault(); installEvt = ev; $("install").hidden = false; });
+$("install").onclick = () => { installEvt && installEvt.prompt(); };
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+function renderAll() { renderChips(); renderView(); }
 renderAll();
 </script>
+</body>
+</html>
