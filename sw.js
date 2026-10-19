@@ -1,5 +1,5 @@
 // Cache hors ligne : l'app marche sans réseau une fois ouverte une fois.
-const CACHE = "calcuroti-v2";
+const CACHE = "calcuroti-v3";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

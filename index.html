@@ -139,9 +139,9 @@ td .ok { color: var(--good) }
 
 /* Barre d'onglets mobile */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--panel); border-top: 1px solid var(--line);
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)) }
-.tabbar button { border: 0; background: transparent; padding: 10px 4px; font-size: .9rem; color: var(--muted) }
+.tabbar button { border: 0; background: transparent; padding: 10px 2px; font-size: .85rem; color: var(--muted) }
 .tabbar button.on { color: var(--accent); background: var(--accent-soft) }
 @media (min-width: 701px) { .tabbar { display: none } }
 
@@ -197,6 +197,12 @@ td .ok { color: var(--good) }
         </div>
 
         <div class="stat" id="cstat"></div>
+
+        <h3>Eau du bac</h3>
+        <div class="fields">
+          <label>Température (°C)<input id="temp" type="number" step="any" inputmode="decimal"></label>
+          <label>Salinité (g/L)<input id="sal" type="number" step="any" inputmode="decimal"></label>
+        </div>
 
         <details>
           <summary class="hint">Saisie directe de la densité (sans comptage)</summary>
@@ -258,6 +264,41 @@ td .ok { color: var(--good) }
     </section>
   </div>
 
+  <!-- EAU -->
+  <div class="view" id="v-eau" hidden>
+    <div class="grid2">
+      <section class="panel">
+        <h2>Eau neuve</h2>
+        <p class="hint">Mélange eau de mer + eau douce pour obtenir la salinité voulue (C1 × V1 = C2 × V2).</p>
+        <div class="fields">
+          <label>Volume à préparer (L)<input id="w_vol" type="number" step="any" inputmode="decimal"></label>
+          <label>Salinité voulue (g/L)<input id="w_target" type="number" step="any" inputmode="decimal"></label>
+          <label>Salinité eau de mer mesurée (g/L)<input id="w_sw" type="number" step="any" inputmode="decimal"></label>
+        </div>
+        <div class="row"><button class="ghost" id="w_full">Bac complet</button><button class="ghost" id="w_renew">Renouvellement du jour</button></div>
+        <div class="res" id="w_res"></div>
+        <p class="formula" id="w_formula"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Stérilisation du milieu</h2>
+        <div class="fields">
+          <label>Volume d'eau (L)<input id="s_vol" type="number" step="any" inputmode="decimal"></label>
+          <label>Javel (ml/L)<input id="s_jav" type="number" step="any" inputmode="decimal"></label>
+          <label>Thiosulfate (ml/L)<input id="s_thio" type="number" step="any" inputmode="decimal"></label>
+        </div>
+        <div class="res" id="s_res"></div>
+        <div class="checks" id="s_steps" style="grid-template-columns:minmax(0,1fr)"></div>
+        <div class="row">
+          <button class="on big" id="s_start">Lancer 1 h de javel</button>
+          <button class="ghost" id="s_stop" hidden>Arrêter</button>
+          <b id="s_timer" style="font:600 1.6rem var(--mono)"></b>
+        </div>
+        <p class="hint">Nettoyer bacs et matériel à l'alcool.</p>
+      </section>
+    </div>
+  </div>
+
   <!-- REGLAGES -->
   <div class="view" id="v-reglages" hidden>
     <section class="panel">
@@ -274,6 +315,8 @@ td .ok { color: var(--good) }
         <label>Volume compté (ml)<input id="p_sv" type="number" step="any" inputmode="decimal"></label>
         <label>Dilution (×)<input id="p_dil" type="number" step="any" inputmode="decimal"></label>
         <label>Seuil alerte ovigères (%)<input id="p_ovmin" type="number" step="any" inputmode="decimal"></label>
+        <label>Température cible (°C)<input id="p_tT" type="number" step="any" inputmode="decimal"></label>
+        <label>Salinité cible (g/L)<input id="p_sT" type="number" step="any" inputmode="decimal"></label>
       </div>
       <p class="hint">Stock gardé = densité à garder × volume. Le surplus est récolté (soutiré). Volume à filtrer = renouvellement − soutiré. Selco = dose × rotifères gardés, réparti sur les repas.</p>
       <div class="row">
@@ -311,7 +354,7 @@ td .ok { color: var(--good) }
 "use strict";
 const KEY = "calcuroti-v2", OLDKEY = "calcuroti-v1";
 const DAYS = ["Lun", "Mar", "Merc", "Jeu", "Ven", "Sam", "Dim"];
-const VIEWS = [["jour", "Jour"], ["semaine", "Semaine"], ["courbes", "Courbes"], ["reglages", "Réglages"]];
+const VIEWS = [["jour", "Jour"], ["semaine", "Semaine"], ["courbes", "Courbes"], ["eau", "Eau"], ["reglages", "Réglages"]];
 const CHECKS = [["sout", "Soutirage"], ["filt", "Filtrage"], ["alg", "Algue ajoutée"]];
 
 /* ---------- utilitaires ---------- */
@@ -332,7 +375,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 
 /* ---------- état ---------- */
 const defParams = () => ({ vol: 300, target: 160, renew: 100, dose: 0.7, meals: 2, hours: "09:00 15:00",
-  algae: "1,5 L + 150 ml", sv: 0.1, dil: 1, ovmin: 10 });
+  algae: "15 L", sv: 0.1, dil: 1, ovmin: 10, tT: 24, sT: 25 });
 const newBac = name => ({ id: uid(), name, params: defParams(), entries: {} });
 
 function load() {
@@ -413,7 +456,10 @@ function calc(b, date, withPrev = true) {
 }
 
 function alertsFor(b, r) {
-  const p = b.params, out = [];
+  const p = b.params, out = [], e = b.entries[state.date] || {};
+  const t = num(e.temp), sl = num(e.sal), tT = num(p.tT) ?? 24, sT = num(p.sT) ?? 25;
+  if (t != null && Math.abs(t - tT) > 1) out.push(["w", `Température ${fr(t)} °C : cible ${fr(tT)} °C.`]);
+  if (sl != null && Math.abs(sl - sT) > 2) out.push(["w", `Salinité ${fr(sl)} g/L : cible ${fr(sT)} g/L. Ajuster l'eau neuve (onglet Eau).`]);
   if (!r || !r.dens) return out;
   if (r.cs && r.cs.n < 3) out.push(["i", `${r.cs.n} comptage${r.cs.n > 1 ? "s" : ""} seulement : 3 minimum conseillés pour une densité fiable.`]);
   if (r.cs && r.cs.n > 1 && r.cs.cv > 25) out.push(["w", `Comptages dispersés (CV ${fr(r.cs.cv, 0)} %). Bien homogénéiser et refaire un comptage.`]);
@@ -454,6 +500,7 @@ function renderView() {
   if (state.view === "semaine") renderSheet();
   if (state.view === "courbes") renderCharts();
   if (state.view === "reglages") renderParams();
+  if (state.view === "eau") renderWater();
 }
 
 /* ---------- rendu : jour ---------- */
@@ -489,6 +536,7 @@ function renderInput() {
   });
   $("dens").value = e.dens ?? ""; $("ovig").value = e.ovig ?? "";
   $("note").value = e.note || "";
+  $("temp").value = e.temp ?? ""; $("sal").value = e.sal ?? "";
 }
 // Ajoute la ligne vide suivante sans reconstruire celle qu'on est en train de taper
 function appendRowLater() {
@@ -537,7 +585,7 @@ function update() {
       (cs ? `Densité = ${fr(cs.mean)} rot ÷ ${fr(cs.sv, 3)} ml × ${fr(cs.dil)} = ${fr(cs.dens, 0)} rot/ml · ovig. = ${cs.sumO} ÷ ${cs.sumT} = ${fr(cs.ovig)} %<br>` : "") +
       `Total = ${fr(r.dens, 0)} rot/ml × ${fr(num(p.vol))} L = ${fr(r.total)}·10⁶<br>` +
       `Stock gardé = ${fr(num(p.target))} × ${fr(num(p.vol))} L = ${fr(r.stock)}·10⁶ → produits = ${fr(r.prod)}·10⁶<br>` +
-      `Soutirer = ${fr(r.prod)}·10⁶ ÷ ${fr(r.dens, 0)} rot/ml = ${fr(r.sout)} L · Filtrer = ${fr(num(p.renew))} − ${fr(r.sout)} = ${fr(r.filt)} L<br>` +
+      `Soutirer = ${fr(num(p.vol))} L × ${fr(r.prod)} ÷ ${fr(r.total)} = ${fr(r.sout)} L · Filtrer = ${fr(num(p.renew))} − ${fr(r.sout)} = ${fr(r.filt)} L<br>` +
       `Selco = ${fr(num(p.dose), 2)} g × ${fr(r.kept)}·10⁶ gardés = ${fr(r.selco, 2)} g → ${r.meals} repas de ${fr(r.meal)} g` +
       (r.growth != null ? `<br>Croissance = ln(${fr(r.total)} ÷ ${fr(r.prev.kept)}) ÷ ${r.prevDays} j = ${fr(r.growth, 3)} /j` : "");
   } else {
@@ -692,7 +740,7 @@ function renderParams() {
   $("p_name").value = b.name;
   $("p_name").oninput = () => { b.name = $("p_name").value || "Bac"; renderChips(); save(); };
   [["p_vol", "vol"], ["p_target", "target"], ["p_renew", "renew"], ["p_dose", "dose"], ["p_meals", "meals"], ["p_hours", "hours"],
-   ["p_algae", "algae"], ["p_sv", "sv"], ["p_dil", "dil"], ["p_ovmin", "ovmin"]].forEach(([id, k]) => {
+   ["p_algae", "algae"], ["p_sv", "sv"], ["p_dil", "dil"], ["p_ovmin", "ovmin"], ["p_tT", "tT"], ["p_sT", "sT"]].forEach(([id, k]) => {
     const el = $(id); el.value = p[k] ?? "";
     el.oninput = el.onchange = () => { p[k] = el.type === "number" || id === "p_meals" ? num(el.value) : el.value; save(); };
   });
@@ -716,11 +764,11 @@ $("impjson").onchange = ev => {
   ev.target.value = "";
 };
 $("expcsv").onclick = () => {
-  const lines = [["Bac", "Date", "Jour", "Densité rot/ml", "% ovigères", "Gouttes", "Total 1e6", "Produits 1e6", "Soutirer L", "Filtrer L", "Algue", "Selco g", "Repas g", "Croissance /j", "Note"].join(";")];
+  const lines = [["Bac", "Date", "Jour", "Densité rot/ml", "% ovigères", "Gouttes", "Total 1e6", "Produits 1e6", "Soutirer L", "Filtrer L", "Algue", "Selco g", "Repas g", "Croissance /j", "T °C", "Salinité g/L", "Note"].join(";")];
   state.bacs.forEach(b => Object.keys(b.entries).sort().forEach(d => {
     const r = calc(b, d); if (!r || !r.dens) return;
     lines.push([b.name, d, dayName(d), fr(r.dens, 0), fr(r.ovig), r.cs ? r.cs.n : "", fr(r.total), fr(r.prod), fr(r.sout), fr(r.filt),
-      b.params.algae, fr(r.selco, 2), fr(r.meal), r.growth != null ? fr(r.growth, 3) : "", (r.e.note || "").replace(/[;\n]/g, " ")].join(";"));
+      b.params.algae, fr(r.selco, 2), fr(r.meal), r.growth != null ? fr(r.growth, 3) : "", fr(num(r.e.temp)), fr(num(r.e.sal)), (r.e.note || "").replace(/[;\n]/g, " ")].join(";"));
   }));
   download(`calcuroti-historique-${today()}.csv`, "﻿" + lines.join("\n"), "text/csv");
   toast("Historique exporté.");
@@ -738,6 +786,8 @@ $("addc").onclick = () => { const e = entry(); e.counts.push({ t: "", o: "" }); 
 $("dens").oninput = () => { entry().dens = num($("dens").value); update(); };
 $("ovig").oninput = () => { entry().ovig = num($("ovig").value); update(); };
 $("note").oninput = () => { entry().note = $("note").value; save(); };
+$("temp").oninput = () => { entry().temp = num($("temp").value); update(); };
+$("sal").oninput = () => { entry().sal = num($("sal").value); update(); };
 const buzz = () => { try { navigator.vibrate && navigator.vibrate(15); } catch (e) {} };
 $("tRot").onclick = () => { tally.t++; tally.hist.push("t"); buzz(); renderInput(); };
 $("tOv").onclick = () => { tally.t++; tally.o++; tally.hist.push("o"); buzz(); renderInput(); };
@@ -763,6 +813,54 @@ $("install").onclick = () => { installEvt && installEvt.prompt(); };
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
+
+/* ---------- eau neuve et stérilisation ---------- */
+const STEPS = ["Javel ajoutée", "Pompe 1 min", "Javel 1 h", "Thiosulfate ajouté", "Test KI négatif (plus de javel)"];
+function water() {
+  const p = bac().params;
+  return (state.water ||= { vol: num(p.vol) || 300, target: num(p.sT) || 25, sw: 35, svol: num(p.vol) || 300, jav: 1, thio: 1, steps: {}, end: null });
+}
+function renderWater() {
+  const w = water();
+  [["w_vol", "vol"], ["w_target", "target"], ["w_sw", "sw"], ["s_vol", "svol"], ["s_jav", "jav"], ["s_thio", "thio"]].forEach(([id, k]) => {
+    const el = $(id); el.value = w[k] ?? "";
+    el.oninput = () => { w[k] = num(el.value); save(); waterCalc(); };
+  });
+  $("s_steps").innerHTML = STEPS.map((l, i) => `<label class="chk"><input type="checkbox" data-i="${i}" ${w.steps[i] ? "checked" : ""}><span>${i + 1}. ${l}</span></label>`).join("");
+  $("s_steps").querySelectorAll("input").forEach(c => c.onchange = () => { w.steps[c.dataset.i] = c.checked; save(); });
+  waterCalc(); tick();
+}
+function waterCalc() {
+  const w = water(), k = (v, u, l, cls = "") => `<div class="k ${cls}"><b>${v}<i>${u}</i></b><span>${l}</span></div>`;
+  const V = w.vol, C1 = w.target, C2 = w.sw;
+  if (V && C1 != null && C2 && C2 >= C1) {
+    const sea = C1 * V / C2, fresh = V - sea;
+    $("w_res").innerHTML = k(fr(sea), "L", "Eau de mer", "act") + k(fr(fresh), "L", "Eau douce", "act");
+    $("w_formula").innerHTML = `V eau de mer = ${fr(C1)} × ${fr(V)} ÷ ${fr(C2)} = ${fr(sea)} L<br>Eau douce = ${fr(V)} − ${fr(sea)} = ${fr(fresh)} L`;
+  } else {
+    $("w_res").innerHTML = `<p class="hint">${C2 && C2 < C1 ? "L'eau de mer est moins salée que la cible : impossible par simple dilution." : "Entrez la salinité mesurée de l'eau de mer."}</p>`;
+    $("w_formula").innerHTML = "";
+  }
+  const S = w.svol || 0;
+  $("s_res").innerHTML = k(fr(S * (w.jav || 0)), "ml", "Javel") + k(fr(S * (w.thio || 0)), "ml", "Thiosulfate");
+}
+function tick() {
+  const w = water(), left = w.end ? w.end - Date.now() : null;
+  $("s_stop").hidden = !w.end; $("s_start").hidden = !!w.end;
+  if (left == null) { $("s_timer").textContent = ""; return; }
+  if (left <= 0) {
+    $("s_timer").textContent = "Terminé : neutraliser au thiosulfate";
+    if (!w.rang) { w.rang = true; w.steps[2] = true; save(); try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {} toast("1 h de javel écoulée : ajouter le thiosulfate."); if (state.view === "eau") renderWater(); }
+    return;
+  }
+  const m = Math.floor(left / 60000), s = Math.floor(left / 1000) % 60;
+  $("s_timer").textContent = `${pad(m)}:${pad(s)}`;
+}
+setInterval(() => { if (state.water && state.water.end) tick(); }, 1000);
+$("s_start").onclick = () => { const w = water(); w.end = Date.now() + 3600e3; w.rang = false; w.steps[0] = true; save(); renderWater(); };
+$("s_stop").onclick = () => { const w = water(); w.end = null; save(); tick(); };
+$("w_full").onclick = () => { water().vol = num(bac().params.vol) || 300; save(); renderWater(); };
+$("w_renew").onclick = () => { water().vol = num(bac().params.renew) || 100; save(); renderWater(); };
 
 function renderAll() { renderChips(); renderView(); }
 renderAll();
