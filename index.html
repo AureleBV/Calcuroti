@@ -99,7 +99,8 @@ input[type="text"], textarea { font-family: var(--body) }
 .k span { font-size: .78rem; color: var(--muted) }
 .k.act { background: var(--accent-soft); border-color: var(--accent) }
 .k.act b { color: var(--accent) }
-.k.alg b { color: var(--algae); font-size: 1.1rem }
+.k.alg b { color: var(--algae) }
+.k em { font-style: normal; font: 600 .95rem var(--mono); color: var(--algae) }
 .alerts { display: grid; gap: 6px }
 .al { border-radius: 8px; padding: 8px 12px; font-size: .9rem; display: flex; gap: 8px; align-items: baseline }
 .al::before { font: 700 .75rem var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor }
@@ -310,15 +311,18 @@ td .ok { color: var(--good) }
         <label>Renouvellement / j (L)<input id="p_renew" type="number" step="any" inputmode="decimal"></label>
         <label>Dose Selco (g/10⁶ rot.)<input id="p_dose" type="number" step="any" inputmode="decimal"></label>
         <label>Nombre de repas<select id="p_meals"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
-        <label>Heures des repas<input id="p_hours" type="text" placeholder="09:00 15:00"></label>
-        <label>Algue ajoutée / j<input id="p_algae" type="text"></label>
+        <label>Heures des repas<input id="p_hours" type="text" placeholder="08:00 13:00 18:00"></label>
+        <label>Algue / jour (L)<input id="p_algaeDay" type="number" step="any" inputmode="decimal"></label>
+        <label class="chk" style="grid-column:1/-1"><input id="p_conc" type="checkbox"><span>Remplacer un repas d'algue par de l'algue concentrée</span></label>
+        <label>Concentration algue (×)<input id="p_concX" type="number" step="any" inputmode="decimal"></label>
+        <label>Repas remplacé<select id="p_concMeal"><option value="1">Repas 1</option><option value="2">Repas 2</option><option value="3">Repas 3</option><option value="4">Repas 4</option></select></label>
         <label>Volume compté (ml)<input id="p_sv" type="number" step="any" inputmode="decimal"></label>
         <label>Dilution (×)<input id="p_dil" type="number" step="any" inputmode="decimal"></label>
         <label>Seuil alerte ovigères (%)<input id="p_ovmin" type="number" step="any" inputmode="decimal"></label>
         <label>Température cible (°C)<input id="p_tT" type="number" step="any" inputmode="decimal"></label>
         <label>Salinité cible (g/L)<input id="p_sT" type="number" step="any" inputmode="decimal"></label>
       </div>
-      <p class="hint">Stock gardé = densité à garder × volume. Le surplus est récolté (soutiré). Volume à filtrer = renouvellement − soutiré. Selco = dose × rotifères gardés, réparti sur les repas.</p>
+      <p class="hint">Stock gardé = densité à garder × volume. Le surplus est récolté (soutiré). Volume à filtrer = renouvellement − soutiré. Selco = dose × stock à la densité gardée (160 rot/ml), réparti sur les repas avec l'algue du jour.</p>
       <div class="row">
         <button id="addbac">+ Nouveau bac</button>
         <button id="delbac" class="danger">Supprimer ce bac</button>
@@ -355,7 +359,7 @@ td .ok { color: var(--good) }
 const KEY = "calcuroti-v2", OLDKEY = "calcuroti-v1";
 const DAYS = ["Lun", "Mar", "Merc", "Jeu", "Ven", "Sam", "Dim"];
 const VIEWS = [["jour", "Jour"], ["semaine", "Semaine"], ["courbes", "Courbes"], ["eau", "Eau"], ["reglages", "Réglages"]];
-const CHECKS = [["sout", "Soutirage"], ["filt", "Filtrage"], ["alg", "Algue ajoutée"]];
+const CHECKS = [["sout", "Soutirage"], ["filt", "Filtrage"]];
 
 /* ---------- utilitaires ---------- */
 const $ = id => document.getElementById(id);
@@ -374,20 +378,20 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 /* ---------- état ---------- */
-const defParams = () => ({ vol: 300, target: 160, renew: 100, dose: 0.7, meals: 2, hours: "09:00 15:00",
-  algae: "15 L", sv: 0.1, dil: 1, ovmin: 10, tT: 24, sT: 25 });
+const defParams = () => ({ vol: 300, target: 160, renew: 100, dose: 0.7, meals: 3, hours: "08:00 13:00 18:00",
+  algaeDay: 30, conc: false, concX: 100, concMeal: 3, sv: 0.1, dil: 1, ovmin: 10, tT: 24, sT: 25 });
 const newBac = name => ({ id: uid(), name, params: defParams(), entries: {} });
 
 function load() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  if (s && s.bacs && s.bacs.length) return s;
+  if (s && s.bacs && s.bacs.length) { s.bacs.forEach(b => { b.params = Object.assign(defParams(), b.params); }); return s; }
   let old = null;
   try { old = JSON.parse(localStorage.getItem(OLDKEY)); } catch (e) {}
   if (old && old.bacs && old.bacs.length) {
     return { bacs: old.bacs.map(b => {
       const nb = newBac(b.name);
-      Object.assign(nb.params, { vol: b.params.vol, target: b.params.target, renew: b.params.renew, dose: b.params.dose, algae: b.params.algae });
+      Object.assign(nb.params, { vol: b.params.vol, target: b.params.target, renew: b.params.renew, dose: b.params.dose });
       Object.values(b.week || {}).forEach(e => { if (e.date && e.dens) nb.entries[e.date] = { counts: [], dens: e.dens, ovig: e.ovig }; });
       return nb;
     }), cur: 0, date: today(), view: "jour", mode: "list" };
@@ -412,6 +416,15 @@ function toast(msg) {
 }
 
 /* ---------- calculs ---------- */
+// Algue du jour répartie sur les repas ; un repas peut passer en algue concentrée (volume ÷ concentration)
+function algaeOf(p) {
+  const meals = Math.max(1, num(p.meals) || 1), day = num(p.algaeDay) ?? 30, per = day / meals;
+  const cm = p.conc ? Math.min(meals, Math.max(1, num(p.concMeal) || meals)) : 0;
+  const concMl = cm ? per / (num(p.concX) || 100) * 1000 : 0;
+  return { algaeDay: day, algaePer: per, concMeal: cm, concMl, algaeFresh: day - (cm ? per : 0),
+    mealAlgae: Array.from({ length: meals }, (_, i) => i + 1 === cm ? `${fr(concMl)} ml conc.` : `${fr(per)} L algue`) };
+}
+const algaeTxt = a => `${fr(a.algaeFresh)} L` + (a.concMeal ? ` + ${fr(a.concMl)} ml conc.` : "");
 function countStats(b, e) {
   const p = b.params, c = (e?.counts || []).filter(r => num(r.t) != null);
   if (!c.length) return null;
@@ -437,9 +450,9 @@ function calc(b, date, withPrev = true) {
   const kept = Math.min(total, stock);
   const sout = floor1(prod * 1000 / dens);               // L : prod·10⁶ ÷ rot/ml ÷ 1000
   const filt = Math.max(0, +((num(p.renew) || 0) - sout).toFixed(1));
-  const selco = +((num(p.dose) || 0) * kept).toFixed(2);
+  const selco = +((num(p.dose) || 0) * stock).toFixed(2);   // dose × stock à la densité gardée (160 rot/ml)
   const meal = Math.round(selco / meals * 2) / 2;
-  const r = { e, cs, dens, ovig, total, stock, prod, kept, sout, filt, selco, meal, meals };
+  const r = { e, cs, dens, ovig, total, stock, prod, kept, sout, filt, selco, meal, meals, ...algaeOf(p) };
   if (withPrev) {
     for (let i = 1; i <= 3; i++) {
       const pd = addDays(date, -i), pr = b.entries[pd] && calc(b, pd, false);
@@ -567,7 +580,8 @@ function update() {
   const k = (v, u, l, cls = "") => `<div class="k ${cls}"><b>${v}<i>${u}</i></b><span>${l}</span></div>`;
   const hrs = hoursOf(p);
   if (r && r.dens) {
-    const meals = Array.from({ length: r.meals }, (_, i) => k(fr(r.meal), "g", `Repas ${i + 1}${hrs[i] ? " · " + esc(hrs[i]) : ""}`, "act"));
+    const meals = Array.from({ length: r.meals }, (_, i) =>
+      `<div class="k act"><b>${fr(r.meal)}<i>g Selco</i></b><em>+ ${r.mealAlgae[i]}</em><span>Repas ${i + 1}${hrs[i] ? " · " + esc(hrs[i]) : ""}</span></div>`);
     $("res").innerHTML = [
       k(fr(r.dens, 0), "rot/ml", "Densité"),
       k(fr(r.ovig), "%", "♀ ovigères"),
@@ -575,7 +589,7 @@ function update() {
       k(fr(r.prod), "×10⁶", "Rotifères produits"),
       k(fr(r.sout), "L", "Volume à soutirer", "act"),
       k(fr(r.filt), "L", "Volume à filtrer", "act"),
-      k(esc(p.algae) || "—", "", "Algue à ajouter", "alg"),
+      k(fr(r.algaeFresh), "L", r.concMeal ? `Algue du jour + ${fr(r.concMl)} ml concentrée` : "Algue du jour", "alg"),
       k(fr(r.selco, 2), "g/j", "Selco total"),
       ...meals,
       r.growth != null ? k((r.growth >= 0 ? "+" : "") + fr(r.growth, 2), "/j", `Croissance (vs ${short(addDays(state.date, -r.prevDays))})`) : "",
@@ -586,7 +600,8 @@ function update() {
       `Total = ${fr(r.dens, 0)} rot/ml × ${fr(num(p.vol))} L = ${fr(r.total)}·10⁶<br>` +
       `Stock gardé = ${fr(num(p.target))} × ${fr(num(p.vol))} L = ${fr(r.stock)}·10⁶ → produits = ${fr(r.prod)}·10⁶<br>` +
       `Soutirer = ${fr(num(p.vol))} L × ${fr(r.prod)} ÷ ${fr(r.total)} = ${fr(r.sout)} L · Filtrer = ${fr(num(p.renew))} − ${fr(r.sout)} = ${fr(r.filt)} L<br>` +
-      `Selco = ${fr(num(p.dose), 2)} g × ${fr(r.kept)}·10⁶ gardés = ${fr(r.selco, 2)} g → ${r.meals} repas de ${fr(r.meal)} g` +
+      `Selco = ${fr(num(p.dose), 2)} g × ${fr(r.stock)}·10⁶ (${fr(num(p.target))} rot/ml) = ${fr(r.selco, 2)} g → ${r.meals} repas de ${fr(r.meal)} g<br>` +
+      `Algue = ${fr(r.algaeDay)} L ÷ ${r.meals} repas = ${fr(r.algaePer)} L/repas` + (r.concMeal ? ` · repas ${r.concMeal} : ${fr(r.algaePer)} L ÷ ${fr(num(p.concX) || 100)} = ${fr(r.concMl)} ml concentrée` : "") +
       (r.growth != null ? `<br>Croissance = ln(${fr(r.total)} ÷ ${fr(r.prev.kept)}) ÷ ${r.prevDays} j = ${fr(r.growth, 3)} /j` : "");
   } else {
     $("res").innerHTML = `<p class="hint">Tapez le nombre de rotifères compté dans ${fr(num(p.sv) || 0.1, 3)} ml : tout le reste se calcule.</p>`;
@@ -601,8 +616,10 @@ function update() {
 function renderChecks(b, r) {
   const e = entry(b), p = b.params, hrs = hoursOf(p);
   e.done ||= {};
-  const items = [...CHECKS.map(([k, l]) => [k, l, k === "sout" && r?.dens ? `${fr(r.sout)} L` : k === "filt" && r?.dens ? `${fr(r.filt)} L` : k === "alg" ? p.algae : ""]),
-    ...Array.from({ length: Math.max(1, num(p.meals) || 1) }, (_, i) => ["r" + (i + 1), `Repas ${i + 1}`, [r?.dens ? fr(r.meal) + " g" : "", hrs[i] || ""].filter(Boolean).join(" · ")])];
+  const a = algaeOf(p);
+  const items = [...CHECKS.map(([k, l]) => [k, l, k === "sout" && r?.dens ? `${fr(r.sout)} L` : k === "filt" && r?.dens ? `${fr(r.filt)} L` : ""]),
+    ...Array.from({ length: Math.max(1, num(p.meals) || 1) }, (_, i) => ["r" + (i + 1), `Repas ${i + 1}${hrs[i] ? " · " + hrs[i] : ""}`,
+      [r?.dens ? fr(r.meal) + " g Selco" : "", a.mealAlgae[i]].filter(Boolean).join(" + ")])];
   $("checks").innerHTML = items.map(([k, l, s]) =>
     `<label class="chk"><input type="checkbox" data-k="${k}" ${e.done[k] ? "checked" : ""}><span>${l}<small>${esc(s)}</small></span></label>`).join("");
   $("checks").querySelectorAll("input").forEach(c => c.onchange = () => { e.done[c.dataset.k] = c.checked; save(); });
@@ -633,9 +650,9 @@ function weekRows(b, mon) {
     const ok = r && r.dens;
     const doneN = Object.values(e.done || {}).filter(Boolean).length;
     return { date, d, r, cells: [short(date), d, ok ? fr(r.dens, 0) : "", ok ? fr(r.ovig) : "", ok ? fr(num(p.vol)) : "",
-      ok ? fr(r.total) : "", ok ? fr(r.prod) : "", ok ? fr(r.sout) : "", ok ? fr(r.filt) : "", ok ? p.algae : "",
+      ok ? fr(r.total) : "", ok ? fr(r.prod) : "", ok ? fr(r.sout) : "", ok ? fr(r.filt) : "", ok ? algaeTxt(r) : "",
       fr(num(p.dose), 2), ok ? fr(r.selco, 2) : "",
-      ok ? { meal: Array.from({ length: r.meals }, (_, k) => `${fr(r.meal)} g <em>${esc(hrs[k] || "")}</em>`).join("<br>") } : "",
+      ok ? { meal: Array.from({ length: r.meals }, (_, k) => `${fr(r.meal)} g + ${r.mealAlgae[k]} <em>${esc(hrs[k] || "")}</em>`).join("<br>") } : "",
       ok ? { done: `${doneN}/${CHECKS.length + r.meals}` } : ""] };
   });
 }
@@ -740,10 +757,12 @@ function renderParams() {
   $("p_name").value = b.name;
   $("p_name").oninput = () => { b.name = $("p_name").value || "Bac"; renderChips(); save(); };
   [["p_vol", "vol"], ["p_target", "target"], ["p_renew", "renew"], ["p_dose", "dose"], ["p_meals", "meals"], ["p_hours", "hours"],
-   ["p_algae", "algae"], ["p_sv", "sv"], ["p_dil", "dil"], ["p_ovmin", "ovmin"], ["p_tT", "tT"], ["p_sT", "sT"]].forEach(([id, k]) => {
+   ["p_algaeDay", "algaeDay"], ["p_concX", "concX"], ["p_concMeal", "concMeal"], ["p_sv", "sv"], ["p_dil", "dil"], ["p_ovmin", "ovmin"], ["p_tT", "tT"], ["p_sT", "sT"]].forEach(([id, k]) => {
     const el = $(id); el.value = p[k] ?? "";
-    el.oninput = el.onchange = () => { p[k] = el.type === "number" || id === "p_meals" ? num(el.value) : el.value; save(); };
+    el.oninput = el.onchange = () => { p[k] = el.type === "number" || el.tagName === "SELECT" ? num(el.value) : el.value; save(); };
   });
+  $("p_conc").checked = !!p.conc;
+  $("p_conc").onchange = () => { p.conc = $("p_conc").checked; save(); };
   $("delconfirm").hidden = true;
 }
 
@@ -768,7 +787,7 @@ $("expcsv").onclick = () => {
   state.bacs.forEach(b => Object.keys(b.entries).sort().forEach(d => {
     const r = calc(b, d); if (!r || !r.dens) return;
     lines.push([b.name, d, dayName(d), fr(r.dens, 0), fr(r.ovig), r.cs ? r.cs.n : "", fr(r.total), fr(r.prod), fr(r.sout), fr(r.filt),
-      b.params.algae, fr(r.selco, 2), fr(r.meal), r.growth != null ? fr(r.growth, 3) : "", fr(num(r.e.temp)), fr(num(r.e.sal)), (r.e.note || "").replace(/[;\n]/g, " ")].join(";"));
+      algaeTxt(r), fr(r.selco, 2), fr(r.meal), r.growth != null ? fr(r.growth, 3) : "", fr(num(r.e.temp)), fr(num(r.e.sal)), (r.e.note || "").replace(/[;\n]/g, " ")].join(";"));
   }));
   download(`calcuroti-historique-${today()}.csv`, "﻿" + lines.join("\n"), "text/csv");
   toast("Historique exporté.");
